@@ -11,7 +11,7 @@ void log_msg(const char *fmt,...)
     //加锁
     pthread_mutex_lock(&log_mutex);
     //                                获取当前进程id
-    printf("tid = %lu",(unsigned long)pthread_self());
+    printf("tid = %lu ",(unsigned long)pthread_self());     // 【修复】原来结尾没有分隔符，日志会粘成 "tid = 12345服务器启动"
     //定义一个参数指针
     va_list ap;
     //声明指针指向的位置

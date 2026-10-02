@@ -37,12 +37,17 @@ static void *capture_thread(void *arg)
             stream_update(data, buffer_size);
             frame_count++;
         }
-        if(frame_count % fps == 0)
+        // 【修复】原来写的是 frame_count % fps == 0：循环一开始 frame_count 还是 0 就先命中一次，
+        // 拿 0 帧去算帧率，打印出 "Actual FPS: 0.00"（而且 elapsed 可能为 0，会算出 inf/nan）
+        if(frame_count >= (uint64_t)fps)
         {
         clock_gettime(CLOCK_MONOTONIC, &t2);
         double elapsed = (t2.tv_sec - t1.tv_sec) + (t2.tv_nsec - t1.tv_nsec) / 1e9;
-        double actual_fps = frame_count / elapsed;
-        log_msg("Actual FPS: %.2f", actual_fps);
+        if(elapsed > 0)     // 【修复】加除零保护
+        {
+            double actual_fps = frame_count / elapsed;
+            log_msg("Actual FPS: %.2f", actual_fps);
+        }
         frame_count = 0;
         t1 = t2;
         }
@@ -53,7 +58,14 @@ static void *capture_thread(void *arg)
 
 int main()
 {
-    signal(SIGINT, on_signal);
+    // 【修复】原来用 signal(SIGINT, on_signal)：glibc 的 signal() 等价于带 SA_RESTART 的 sigaction，
+    // accept() 被 Ctrl+C 打断后会被内核自动重启，server_run 里的循环永远退不出来，
+    // 下面第 95 行往后（join 采集线程、保存截图、释放资源）全是死代码。
+    // 改成不带 SA_RESTART 的 sigaction，accept() 才会返回 EINTR，配合 server.c 里的 errno 判断退出
+    struct sigaction sa = {0};
+    sa.sa_handler = on_signal;
+    sigaction(SIGINT,  &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);   // 【修复】顺带支持 kill 退出
 
     camera_t *cam = camera_open("/dev/video0", 640, 480, 30);
     if(!cam)

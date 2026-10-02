@@ -42,7 +42,12 @@ static void serve_stream(int fd)
 
     while (running) 
     {
-        if (!stream_get(frame, sizeof(frame), &len, &ver)) continue;
+        // 【修复】原来写的是 if (!stream_get(frame, sizeof(frame), &len, &ver)) continue; 有两处错：
+        // 1) 参数错位：第 2 个形参是 size_t *，却传了 sizeof(frame)（整数 262144），
+        //    函数内执行 *size = ... 时会往地址 262144 写，客户端一连 /stream 就段错误；
+        // 2) 判断写反了：stream_get 成功返回 0，!0 为真反而 continue，等于永远不发送帧。
+        // 正确写法：取到新帧就往下发，返回非 0（主线程退出）就结束本连接
+        if (stream_get(frame, &len, &ver, NULL) != 0) break;
 
         int n = snprintf(part, sizeof(part),
                          "\r\n--frameboundary\r\n"
@@ -88,6 +93,10 @@ static void serve_ptz(int fd, const char *query) {
 }
 
 static void serve_file(int fd, const char *path) {
+    // 【修复】浏览器访问根路径时 path 是 "/"，原来会拼成 "www/"，open 失败返回 404，
+    // 也就是 www/index.html 这个页面根本打不开（页面里的 /stream、/ptz、/shot 也就无从触发）
+    if (strcmp(path, "/") == 0) path = "/index.html";
+
     char filepath[512];
     snprintf(filepath, sizeof(filepath), "%s%s", WWW_ROOT, path);
     if (strstr(filepath, "..")) {
