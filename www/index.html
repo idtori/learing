@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>远程视频监控</title>
+<style>
+  body { font-family: sans-serif; margin: 20px; background: #111; color: #eee; }
+  img { background: #000; max-width: 100%; border: 1px solid #444; }
+  button { padding: 10px 18px; margin: 4px; font-size: 16px; cursor: pointer; }
+  #msg { margin-top: 10px; color: #8f8; min-height: 1.2em; }
+</style>
+</head>
+<body>
+<h2>📷 远程视频监控</h2>
+<img src="/stream" alt="实时画面">
+
+<p>
+  <button onclick="ptz('up')">上</button><br>
+  <button onclick="ptz('left')">左</button>
+  <button onclick="ptz('stop')">停</button>
+  <button onclick="ptz('right')">右</button><br>
+  <button onclick="ptz('down')">下</button>
+</p>
+<p><button onclick="shot()">📸 截图</button></p>
+<div id="msg"></div>
+
+<script>
+  function ptz(dir) {
+    fetch('/ptz?dir=' + dir).then(r => r.text()).then(t => msg(t));
+  }
+  function shot() {
+    fetch('/shot').then(r => r.text()).then(t => msg(t));
+  }
+  function msg(t) { document.getElementById('msg').textContent = t; }
+</script>
+</body>
+</html>
