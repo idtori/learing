@@ -67,10 +67,27 @@ int main()
     sigaction(SIGINT,  &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);   // 【修复】顺带支持 kill 退出
 
+    /* 【修复】忽略 SIGPIPE。
+     * 浏览器刷新 / 关标签页 / curl 超时都会断开 TCP，此时服务器如果再往这个 socket
+     * send()，内核会先给进程发 SIGPIPE —— 它的默认动作是"直接杀死整个进程"，
+     * 于是现象就是：浏览器一刷新，服务器就没了（日志没有任何报错，进程凭空消失）。
+     * 忽略它以后，send() 只会返回 -1/EPIPE，代码里 send_all() 已经会返回失败并结束该连接。
+     * （另一种等价写法是在 send() 时加 MSG_NOSIGNAL 标志） */
+    struct sigaction sa_ign = {0};
+    sa_ign.sa_handler = SIG_IGN;
+    sigaction(SIGPIPE, &sa_ign, NULL);
+
     camera_t *cam = camera_open("/dev/video0", 640, 480, 30);
     if(!cam)
     {
         log_msg("camera open failed");
+        /* 【新增】面向初学者的排查提示：V4L2 摄像头是"独占设备"，
+         * 同一个 /dev/video0 同一时间只能被一个进程打开，最常见的失败原因就是被旧进程占着 */
+        fprintf(stderr,
+                "  排查三步：\n"
+                "   1) ls -l /dev/video*                             # 设备节点在不在、属主是不是 root:video\n"
+                "   2) pgrep -a server ; pkill -9 -x server          # 旧的 server 没退干净会一直占着摄像头(Device or resource busy)\n"
+                "   3) v4l2-ctl --list-formats-ext -d /dev/video0    # 摄像头支持哪些格式/分辨率\n");
         return 1;
     }
 
