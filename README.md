@@ -7,7 +7,7 @@
 
 接入usb摄像头后
 在powershell绑定摄像头:
-usbpid bind --busid 1-1
+usbpid bind --busid 1-1,
 usbpid attach --wsl --busid 1-1
 
 wsl乌邦图终端:
