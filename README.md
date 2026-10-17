@@ -4,3 +4,11 @@
 <img width="624" height="433" alt="屏幕截图 2026-10-17 173635" src="https://github.com/user-attachments/assets/8f5fafd0-d49b-47f5-9ab9-0859bfc947be" />
 
 平均帧率为20帧左右，大小640x480
+
+接入usb摄像头后
+在powershell绑定摄像头:
+usbpid bind --busid 1-1
+usbpid attach --wsl --busid 1-1
+
+wsl乌邦图终端:
+./server
